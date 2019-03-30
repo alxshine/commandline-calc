@@ -4,7 +4,8 @@ import ply.yacc as yacc
 #lexing rules
 tokens = (
     'NAME',
-    'NUMBER',
+    'DEC', 'HEX', 'OCT', 'BIN',
+    'FORMAT_HEX', 'FORMAT_OCT', 'FORMAT_BIN',
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS',
     'LPAREN', 'RPAREN'
     )
@@ -18,14 +19,40 @@ t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
 
-def t_NUMBER(t):
-    r'\d+'
+def try_get_value(token, base):
     try:
-        t.value = int(t.value)
+        return int(token, base)
     except ValueError:
-        print("Integer value too large %d", t.value)
-        t.value = 0
-    return t\
+        print("Integer value too large %s" % token)
+
+def t_DEC(t):
+    r'[1-9]\d*'
+    t.value = try_get_value(t.value, 10)
+    return t
+
+def t_HEX(t):
+    r'0x[\da-fA-F]+'
+    t.value = try_get_value(t.value, 16)
+    return t
+
+def t_OCT(t):
+    r'0o[0-7]+'
+    t.value = try_get_value(t.value, 8)
+    return t
+
+def t_BIN(t):
+    r'0b[01]+'
+    t.value = try_get_value(t.value, 2)
+    return t
+
+# def t_FORMAT_HEX(t):
+#     r'hex|HEX'
+
+# def t_FORMAT_OCT(t):
+#     r'oct|OCT'
+
+# def t_FORMAT_BIN(t):
+#     r'bin|BIN'
 
 #ignore whitespace
 t_ignore = " \t"
@@ -50,9 +77,15 @@ precedence = (
 #dictionary of defined names
 names = {}
 
+# def p_statement_format(t):
+#     'statement : FORMAT_HEX'
+#     print('formatting')
+#     # print( hex( t[3] ) )
+
 def p_statement_assign(t):
     'statement : NAME EQUALS expression'
     names[t[1]] = t[3]
+    print(t[3])
 
 def p_statement_expr(t):
     'statement : expression'
@@ -76,8 +109,15 @@ def p_expression_group(t):
     'expression : LPAREN expression RPAREN'
     t[0] = t[2]
 
+def p_number(t):
+    '''number : DEC 
+    | HEX 
+    | OCT 
+    | BIN'''
+    t[0] = t[1]
+    
 def p_expression_number(t):
-    'expression : NUMBER'
+    'expression : number'
     t[0] = t[1]
 
 def p_expression_name(t):
@@ -89,7 +129,7 @@ def p_expression_name(t):
         t[0] = 0
 
 def p_error(t):
-    print("Syntax error: '%s'" % t.value)
+    print("Syntax error: '%s'" % t)
 
 parser = yacc.yacc()
 
