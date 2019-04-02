@@ -1,14 +1,24 @@
 import ply.lex as lex
 import ply.yacc as yacc
+import custom_formats
 
 #lexing rules
-tokens = (
-    'NAME',
-    'DEC', 'HEX', 'OCT', 'BIN',
-    'FORMAT_HEX', 'FORMAT_OCT', 'FORMAT_BIN',
-    'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS',
-    'LPAREN', 'RPAREN'
-    )
+reserved = {
+    "hex": 'FORMAT_HEX',
+    "bin": 'FORMAT_BIN',
+        }
+
+format_functions = {
+    "hex": custom_formats.format_hex,
+    "bin": custom_formats.format_bin
+        }
+
+tokens = [ 
+        'DEC', 'HEX', 'BIN',
+        'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS',
+        'LPAREN', 'RPAREN',
+        'ID',
+        ] + list(reserved.values())
 
 t_PLUS = r'\+'
 t_MINUS = r'-'
@@ -17,7 +27,11 @@ t_DIVIDE = r'/'
 t_EQUALS = r'='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
-t_NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
+
+def t_ID(t):
+    r'[a-zA-Z_][a-zA-Z0-9_]*'
+    t.type = reserved.get(t.value, 'ID') #checking for reserved keywords
+    return t
 
 def try_get_value(token, base):
     try:
@@ -45,15 +59,6 @@ def t_BIN(t):
     t.value = try_get_value(t.value, 2)
     return t
 
-# def t_FORMAT_HEX(t):
-#     r'hex|HEX'
-
-# def t_FORMAT_OCT(t):
-#     r'oct|OCT'
-
-# def t_FORMAT_BIN(t):
-#     r'bin|BIN'
-
 #ignore whitespace
 t_ignore = " \t"
 
@@ -77,13 +82,14 @@ precedence = (
 #dictionary of defined names
 names = {}
 
-# def p_statement_format(t):
-#     'statement : FORMAT_HEX'
-#     print('formatting')
-#     # print( hex( t[3] ) )
+def p_statement_format(t):
+    '''statement : FORMAT_HEX expression
+    | FORMAT_BIN expression'''
+    f = format_functions[ t[1] ]
+    print( f( t[2] ) )
 
 def p_statement_assign(t):
-    'statement : NAME EQUALS expression'
+    'statement : ID EQUALS expression'
     names[t[1]] = t[3]
     print(t[3])
 
@@ -112,7 +118,6 @@ def p_expression_group(t):
 def p_number(t):
     '''number : DEC 
     | HEX 
-    | OCT 
     | BIN'''
     t[0] = t[1]
     
@@ -121,7 +126,7 @@ def p_expression_number(t):
     t[0] = t[1]
 
 def p_expression_name(t):
-    'expression : NAME'
+    'expression : ID'
     try:
         t[0] = names[t[1]]
     except LookupError:
